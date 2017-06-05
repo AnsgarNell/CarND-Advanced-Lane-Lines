@@ -3,7 +3,7 @@ import cv2
 import glob
 import os
 
-# STEP 1 CALIBRATION
+# STEP A.1 CALIBRATION
 
 # Number of corners
 nx = 9
@@ -18,7 +18,7 @@ objpoints = [] # 3d points in real world space
 imgpoints = [] # 2d points in image plane.
 
 # Make a list of calibration images
-images = glob.glob('camera_cal/calibration*.jpg')
+images = glob.glob('./camera_cal/calibration*.jpg')
 
 # Step through the list and search for chessboard corners
 for fname in images:
@@ -43,7 +43,7 @@ for fname in images:
 import pickle
 
 # We take the image calibration1 as 
-img = cv2.imread('camera_cal/calibration3.jpg')
+img = cv2.imread('./camera_cal/calibration3.jpg')
 img_size = (img.shape[1], img.shape[0])
 
 # Do camera calibration given object points and image points
@@ -53,9 +53,9 @@ ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_siz
 dist_pickle = {}
 dist_pickle["mtx"] = mtx
 dist_pickle["dist"] = dist
-pickle.dump(dist_pickle, open("camera_cal/wide_dist_pickle.p", "wb" ))
+pickle.dump(dist_pickle, open("./camera_cal/wide_dist_pickle.p", "wb" ))
 
-# Sa
+# Undistort all calibration images
 for fname in images:
 	print('Processing undistortion of image', fname)
 	img = cv2.imread(fname)
