@@ -38,17 +38,15 @@ def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255))
 	# Combine the binary thresholds
 	combined_binary = np.zeros_like(sxbinary)
 	combined_binary[((l_binary == 1) & (s_binary == 1) | (sxbinary==1))] = 1
-	combined_binary = 255*np.dstack((combined_binary,combined_binary,combined_binary)).astype('uint8')
-	
 	return combined_binary
 	
 def transform(img):
 	img_size = (img.shape[1], img.shape[0])
-	offset = 100
-	x1 = 205
-	x3 = 685
+	offset = 150
+	x1 = 200
+	x3 = 1130
 	# We calculated the source points on a straight lines image using Photoshop
-	src = np.float32([[x1,720], [595,450], [685,450], [1110,720]])
+	src = np.float32([[x1,720], [565,470], [725,470], [x3,720]])
 	# c) define 4 destination points dst = np.float32([[,],[,],[,],[,]])
 	dst = np.float32([[x1+offset,720], [x1+offset,0], [x3-offset,0], [x3-offset,720]])
 	# d) use cv2.getPerspectiveTransform() to get M, the transform matrix
@@ -140,8 +138,8 @@ def detect_lines(binary_warped):
 	plt.imshow(out_img)
 	plt.plot(left_fitx, ploty, color='yellow')
 	plt.plot(right_fitx, ploty, color='yellow')
-	plt.xlim(0, 1280)
-	plt.ylim(720, 0)
+	plt.xlim(0, binary_warped.shape[1])
+	plt.ylim(binary_warped.shape[0], 0)
 
 def pipeline(img):
 	img = np.copy(img)
@@ -160,6 +158,8 @@ def pipeline(img):
 	
 	detect_lines(result)
 	
+	#centroids = window_centroids(result)
+	
 	return result, histogram
 
 # Make a list of calibration images
@@ -174,14 +174,16 @@ for fname in images:
 	img = cv2.imread(fname)
 
 	# Warp original
-	warped = transform(img)
+	undist = cv2.undistort(img, mtx, dist, None, mtx)
+	warped = transform(undist)
 	write_name = './output_images/transformed_' + filename
 	cv2.imwrite(write_name,warped)
 	
 	# Process the image
 	final_image, histogram = pipeline(img)
+	final_image_RGB = out_img = np.dstack((final_image, final_image, final_image))*255
 	write_name = './output_images/transformed_processed' + filename
-	cv2.imwrite(write_name,final_image)
+	cv2.imwrite(write_name,final_image_RGB)
 	
 	# Save the histogram
 	plt.plot(histogram)
