@@ -5,15 +5,39 @@ import glob
 import os
 import matplotlib.pyplot as plt
 
+# Define a class to receive the characteristics of each line detection
+class Line():
+    def __init__(self):
+        # was the line detected in the last iteration?
+        self.detected = False  
+        # x values of the last n fits of the line
+        self.recent_xfitted = [] 
+        #average x values of the fitted line over the last n iterations
+        self.bestx = None     
+        #polynomial coefficients averaged over the last n iterations
+        self.best_fit = None  
+        #polynomial coefficients for the most recent fit
+        self.current_fit = [np.array([False])]  
+        #radius of curvature of the line in some units
+        self.radius_of_curvature = None 
+        #distance in meters of vehicle center from the line
+        self.line_base_pos = None 
+        #difference in fit coefficients between last and new fits
+        self.diffs = np.array([0,0,0], dtype='float') 
+        #x values for detected line pixels
+        self.allx = None  
+        #y values for detected line pixels
+        self.ally = None
+
 # Read in the saved camera matrix and distortion coefficients
 # These are the arrays you calculated using cv2.calibrateCamera()
 dist_pickle = pickle.load( open( "./camera_cal/wide_dist_pickle.p", "rb" ) )
 mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
-input_folder = './project_video/'
-output_folder = './project_video/'
+input_folder = './test_images/'
+output_folder = './output_images/'
 # Make a list of calibration images
-images = glob.glob(input_folder + 'filename*.jpg')
+images = glob.glob(input_folder + '*.jpg')
 
 # Combined color and gradient thresholds
 def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255)):
@@ -64,11 +88,16 @@ def detect_lines(binary_warped, filename):
 	# Assuming you have created a warped binary image called "binary_warped"
 	# Take a histogram of the bottom half of the image
 	histogram = np.sum(binary_warped[binary_warped.shape[0]//2:,:], axis=0)
+	
+	# Uncomment for saving images
+	"""
 	# Save the histogram
 	plt.plot(histogram)
 	write_name = './output_images/histogram_' + filename
 	plt.savefig(write_name)
 	plt.clf()
+	"""
+	
 	# Create an output image to draw on and  visualize the result
 	out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
 	# Find the peak of the left and right halves of the histogram
@@ -139,6 +168,8 @@ def detect_lines(binary_warped, filename):
 	left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
 	right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
+	# Uncomment for saving image
+	"""
 	out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
 	out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
 	plt.imshow(out_img)
@@ -149,6 +180,7 @@ def detect_lines(binary_warped, filename):
 	write_name = output_folder + 'sliding_windows_' + filename
 	plt.savefig(write_name)
 	plt.clf()
+	"""
 	
 	# Calculate curvature
 	y_eval = np.max(ploty)
@@ -168,6 +200,8 @@ def detect_lines(binary_warped, filename):
 	# Create an image to draw the lines on
 	warp_zero = np.zeros_like(binary_warped).astype(np.uint8)
 	color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+	lane_center = (right_fitx[0] - left_fitx[0])/2 + left_fitx[0]
+	print(round(lane_center - 640,3))
 
 	# Recast the x and y points into usable format for cv2.fillPoly()
 	pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
@@ -178,6 +212,30 @@ def detect_lines(binary_warped, filename):
 	cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 	
 	return color_warp, left_curverad, right_curverad
+	
+def detect_new_frame_lines(binary_warped):
+	# Assume you now have a new warped binary image 
+	# from the next frame of video (also called "binary_warped")
+	# It's now much easier to find line pixels!
+	nonzero = binary_warped.nonzero()
+	nonzeroy = np.array(nonzero[0])
+	nonzerox = np.array(nonzero[1])
+	margin = 100
+	left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
+	right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))  
+
+	# Again, extract left and right line pixel positions
+	leftx = nonzerox[left_lane_inds]
+	lefty = nonzeroy[left_lane_inds] 
+	rightx = nonzerox[right_lane_inds]
+	righty = nonzeroy[right_lane_inds]
+	# Fit a second order polynomial to each
+	left_fit = np.polyfit(lefty, leftx, 2)
+	right_fit = np.polyfit(righty, rightx, 2)
+	# Generate x and y values for plotting
+	ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
+	left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+	right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
 def pipeline(img, filename):
 	img = np.copy(img)
@@ -190,10 +248,14 @@ def pipeline(img, filename):
 	
 	# STEP A.4 Perspective transform
 	result, Minv = transform(result)
+	
+	# Uncomment for saving file
+	"""
 	# Save binary file
 	final_image_RGB = out_img = np.dstack((result, result, result))*255
 	write_name = output_folder + 'binary_warp_' + filename
 	cv2.imwrite(write_name,final_image_RGB)
+	"""
 	
 	# STEP B Detect lane lines and curvature
 	color_warp, left_curverad, right_curverad = detect_lines(result, filename)
@@ -202,12 +264,18 @@ def pipeline(img, filename):
 	newwarp = cv2.warpPerspective(color_warp, Minv, (img.shape[1], img.shape[0])) 
 	# Combine the result with the original image
 	result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
-	print('Radius of curvature: ', left_curverad, 'm', right_curverad, 'm')
-	#cv2.putText(result,str,(430,670),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2,cv2.LINE_AA)   
+	text = ('Radius of curvature: ' + str(round(left_curverad,3)) + ' m ' + str(round(right_curverad,3)) + ' m')
+	font = cv2.FONT_HERSHEY_SIMPLEX
+	cv2.putText(result,text,(300,70), font, 1,(255,255,255),2)   
 	
+	# Uncomment for saving file
+
 	# Save final image
 	write_name = output_folder + 'final_image_' + filename
 	cv2.imwrite(write_name,result)
+	
+	return result
+
 
 for fname in images:
 
@@ -217,17 +285,21 @@ for fname in images:
 	# Read in an image
 	img = cv2.imread(fname)
 	
+	# Uncomment for saving file
+	"""
 	# Warp original
 	undist = cv2.undistort(img, mtx, dist, None, mtx)
 	warped, Minv = transform(undist)
 	write_name = output_folder + 'warped_' + filename
 	cv2.imwrite(write_name,warped)
+	"""
 
 	# Process the image
-	pipeline(img, filename)
+	result = pipeline(img, filename)
 	
 	# Save output
 	#cv2.imshow('Original image', img)
-	#cv2.imshow('Undistorted image', final_image)
+	#cv2.imshow('Result', result)
+	#cv2.waitKey(1000)
 	
 cv2.destroyAllWindows()
