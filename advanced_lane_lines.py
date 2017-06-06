@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 dist_pickle = pickle.load( open( "./camera_cal/wide_dist_pickle.p", "rb" ) )
 mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
-input_folder = './test_images/'
-output_folder = './output_images/'
+input_folder = './project_video/'
+output_folder = './project_video/'
+# Make a list of calibration images
+images = glob.glob(input_folder + 'filename*.jpg')
 
 # Combined color and gradient thresholds
 def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255)):
@@ -44,11 +46,11 @@ def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255))
 	
 def transform(img):
 	img_size = (img.shape[1], img.shape[0])
-	offset = 150
-	x1 = 200
+	offset = 80
+	x1 = 220
 	x3 = 1130
 	# We calculated the source points on a straight lines image using Photoshop
-	src = np.float32([[x1,720], [565,470], [725,470], [x3,720]])
+	src = np.float32([[x1,720], [615,440], [670,440], [x3,720]])
 	# c) define 4 destination points dst = np.float32([[,],[,],[,],[,]])
 	dst = np.float32([[x1+offset,720], [x1+offset,0], [x3-offset,0], [x3-offset,720]])
 	# d) use cv2.getPerspectiveTransform() to get M, the transform matrix
@@ -162,7 +164,6 @@ def detect_lines(binary_warped, filename):
 	left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
 	right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
 	# Now our radius of curvature is in meters
-	radius_curvature = 0.5*(left_curverad + right_curverad)
 	
 	# Create an image to draw the lines on
 	warp_zero = np.zeros_like(binary_warped).astype(np.uint8)
@@ -176,7 +177,7 @@ def detect_lines(binary_warped, filename):
 	# Draw the lane onto the warped blank image
 	cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 	
-	return color_warp, radius_curvature
+	return color_warp, left_curverad, right_curverad
 
 def pipeline(img, filename):
 	img = np.copy(img)
@@ -195,21 +196,18 @@ def pipeline(img, filename):
 	cv2.imwrite(write_name,final_image_RGB)
 	
 	# STEP B Detect lane lines and curvature
-	color_warp, radius_curvature = detect_lines(result, filename)
+	color_warp, left_curverad, right_curverad = detect_lines(result, filename)
 	
 	# Warp the blank back to original image space using inverse perspective matrix (Minv)
 	newwarp = cv2.warpPerspective(color_warp, Minv, (img.shape[1], img.shape[0])) 
 	# Combine the result with the original image
 	result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
-	print('Radius of curvature: ', radius_curvature, 'm')
+	print('Radius of curvature: ', left_curverad, 'm', right_curverad, 'm')
 	#cv2.putText(result,str,(430,670),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2,cv2.LINE_AA)   
 	
 	# Save final image
 	write_name = output_folder + 'final_image_' + filename
 	cv2.imwrite(write_name,result)
-
-# Make a list of calibration images
-images = glob.glob(input_folder + '*.jpg')
 
 for fname in images:
 
