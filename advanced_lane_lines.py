@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 dist_pickle = pickle.load( open( "./camera_cal/wide_dist_pickle.p", "rb" ) )
 mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
+input_folder = './test_images/'
+output_folder = './output_images/'
 
 # Combined color and gradient thresholds
 def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255)):
@@ -51,18 +53,20 @@ def transform(img):
 	dst = np.float32([[x1+offset,720], [x1+offset,0], [x3-offset,0], [x3-offset,720]])
 	# d) use cv2.getPerspectiveTransform() to get M, the transform matrix
 	M = cv2.getPerspectiveTransform(src, dst)
+	Minv = cv2.getPerspectiveTransform(dst, src)
 	# e) use cv2.warpPerspective() to warp your image to a top-down view
 	warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
-	return warped
+	return warped, Minv
 	
-def create_histogram(img):
-	histogram = np.sum(img[img.shape[0]//2:,:], axis=0)
-	return histogram
-	
-def detect_lines(binary_warped):
+def detect_lines(binary_warped, filename):
 	# Assuming you have created a warped binary image called "binary_warped"
 	# Take a histogram of the bottom half of the image
 	histogram = np.sum(binary_warped[binary_warped.shape[0]//2:,:], axis=0)
+	# Save the histogram
+	plt.plot(histogram)
+	write_name = './output_images/histogram_' + filename
+	plt.savefig(write_name)
+	plt.clf()
 	# Create an output image to draw on and  visualize the result
 	out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
 	# Find the peak of the left and right halves of the histogram
@@ -140,8 +144,41 @@ def detect_lines(binary_warped):
 	plt.plot(right_fitx, ploty, color='yellow')
 	plt.xlim(0, binary_warped.shape[1])
 	plt.ylim(binary_warped.shape[0], 0)
+	write_name = output_folder + 'sliding_windows_' + filename
+	plt.savefig(write_name)
+	plt.clf()
+	
+	# Calculate curvature
+	y_eval = np.max(ploty)
+	
+	# Define conversions in x and y from pixels space to meters
+	ym_per_pix = 30/720 # meters per pixel in y dimension
+	xm_per_pix = 3.7/700 # meters per pixel in x dimension
 
-def pipeline(img):
+	# Fit new polynomials to x,y in world space
+	left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
+	right_fit_cr = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
+	# Calculate the new radii of curvature
+	left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
+	right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+	# Now our radius of curvature is in meters
+	radius_curvature = 0.5*(left_curverad + right_curverad)
+	
+	# Create an image to draw the lines on
+	warp_zero = np.zeros_like(binary_warped).astype(np.uint8)
+	color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+
+	# Recast the x and y points into usable format for cv2.fillPoly()
+	pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+	pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+	pts = np.hstack((pts_left, pts_right))
+
+	# Draw the lane onto the warped blank image
+	cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
+	
+	return color_warp, radius_curvature
+
+def pipeline(img, filename):
 	img = np.copy(img)
 	
 	# STEP A.2 UNDISTORT
@@ -151,19 +188,28 @@ def pipeline(img):
 	result = hls_select(undist)
 	
 	# STEP A.4 Perspective transform
-	result = transform(result)
+	result, Minv = transform(result)
+	# Save binary file
+	final_image_RGB = out_img = np.dstack((result, result, result))*255
+	write_name = output_folder + 'binary_warp_' + filename
+	cv2.imwrite(write_name,final_image_RGB)
 	
-	# STEP B.1 Detect lane lines
-	histogram = create_histogram(result)
+	# STEP B Detect lane lines and curvature
+	color_warp, radius_curvature = detect_lines(result, filename)
 	
-	detect_lines(result)
+	# Warp the blank back to original image space using inverse perspective matrix (Minv)
+	newwarp = cv2.warpPerspective(color_warp, Minv, (img.shape[1], img.shape[0])) 
+	# Combine the result with the original image
+	result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
+	print('Radius of curvature: ', radius_curvature, 'm')
+	#cv2.putText(result,str,(430,670),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2,cv2.LINE_AA)   
 	
-	#centroids = window_centroids(result)
-	
-	return result, histogram
+	# Save final image
+	write_name = output_folder + 'final_image_' + filename
+	cv2.imwrite(write_name,result)
 
 # Make a list of calibration images
-images = glob.glob('./test_images/*.jpg')	
+images = glob.glob(input_folder + '*.jpg')
 
 for fname in images:
 
@@ -172,25 +218,16 @@ for fname in images:
 
 	# Read in an image
 	img = cv2.imread(fname)
-
+	
 	# Warp original
 	undist = cv2.undistort(img, mtx, dist, None, mtx)
-	warped = transform(undist)
-	write_name = './output_images/transformed_' + filename
+	warped, Minv = transform(undist)
+	write_name = output_folder + 'warped_' + filename
 	cv2.imwrite(write_name,warped)
-	
-	# Process the image
-	final_image, histogram = pipeline(img)
-	final_image_RGB = out_img = np.dstack((final_image, final_image, final_image))*255
-	write_name = './output_images/transformed_processed' + filename
-	cv2.imwrite(write_name,final_image_RGB)
-	
-	# Save the histogram
-	plt.plot(histogram)
-	write_name = './output_images/histogram_' + filename
-	plt.savefig(write_name)
-	plt.clf()
 
+	# Process the image
+	pipeline(img, filename)
+	
 	# Save output
 	#cv2.imshow('Original image', img)
 	#cv2.imshow('Undistorted image', final_image)
