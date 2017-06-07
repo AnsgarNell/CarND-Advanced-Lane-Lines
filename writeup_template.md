@@ -26,7 +26,7 @@ The goals / steps of this project are the following:
 [image5]: ./output_images/original_rectangle_straight_lines1.jpg "Binary Example"
 [image6]: ./output_images/warped_straight_lines1.jpg "Warp Example"
 [image7]: ./output_images/sliding_windows_straight_lines1.jpg "Fit Visual"
-[image8]: ./output_images/final_image_straight_lines1.jpg "Output"
+[image8]: ./output_images/final_image_straight_lines2.jpg "Output"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
@@ -65,7 +65,7 @@ In the image I mixed the original and the undistorted images in order to see the
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-I used a combination of S and L channels thresholds to generate a binary image after transforming the original image to HLS (thresholding steps at lines 31 through 58 in `advanced_lane_lines.py`).  Here's an example of my output for this step.
+I used a combination of gradient and S and L channels thresholds to generate a binary image after transforming the original image to HLS (thresholding steps at lines 31 through 58 in `advanced_lane_lines.py`).  Here's an example of my output for this step.
 
 ![alt text][image4]
 
@@ -131,4 +131,12 @@ Here's a [link to my video result](./project_video_result.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further. 
+
+To begin, yes, the pipeline will fail as proved testing the program against more difficult videos like _challenge___video.mp4_ or _harderchallengevideo.mp4_.
+
+The main issue while developing the program was the huge difference in results that one obtains when changing a little bit values like src ord dst coordinates or their offset.
+
+On the other hand, the thresholding should be improved probably using R, G or B color thresholding and maybe some kind of Region Of Interest filter.
+
+Also, the detected lines in previous frames where used always. A better approach would be to check with the curvature and distance to lane center if the detection is good enough and maintain an arry of n last detected lanes to have an average value. 

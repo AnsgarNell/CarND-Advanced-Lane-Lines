@@ -300,7 +300,6 @@ for fname in images:
 # Import everything needed to edit/save/watch video clips
 from moviepy.editor import VideoFileClip
 
-"""
 save_images = False
 is_video = True
 white_output = 'project_video_result.mp4'
@@ -312,4 +311,27 @@ white_output = 'project_video_result.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(pipeline) #NOTE: this function expects color images!!
 white_clip.write_videofile(white_output, audio=False)
-"""
+
+save_images = False
+is_video = True
+white_output = 'challenge_video_result.mp4'
+## To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
+## To do so add .subclip(start_second,end_second) to the end of the line below
+## Where start_second and end_second are integer values representing the start and end of the subclip
+## You may also uncomment the following line for a subclip of the first 5 seconds
+##clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4").subclip(0,5)
+clip1 = VideoFileClip("challenge_video.mp4")
+white_clip = clip1.fl_image(pipeline) #NOTE: this function expects color images!!
+white_clip.write_videofile(white_output, audio=False)
+
+save_images = False
+is_video = True
+white_output = 'harder_challenge_video_result.mp4'
+## To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
+## To do so add .subclip(start_second,end_second) to the end of the line below
+## Where start_second and end_second are integer values representing the start and end of the subclip
+## You may also uncomment the following line for a subclip of the first 5 seconds
+##clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4").subclip(0,5)
+clip1 = VideoFileClip("harder_challenge_video.mp4")
+white_clip = clip1.fl_image(pipeline) #NOTE: this function expects color images!!
+white_clip.write_videofile(white_output, audio=False)
