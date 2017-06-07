@@ -71,6 +71,7 @@ def transform(img):
 	Minv = cv2.getPerspectiveTransform(dst, src)
 	# e) use cv2.warpPerspective() to warp your image to a top-down view
 	warped = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
+	
 	return warped, Minv
 	
 def detect_lines(binary_warped,lane):
@@ -226,6 +227,12 @@ def pipeline(img):
 	# STEP A.3 Color/gradient threshold
 	result = hls_select(undist)
 	
+	if save_images:
+		# Save binary file
+		final_image_RGB = np.dstack((result, result, result))*255
+		write_name = output_folder + 'binary_' + filename
+		cv2.imwrite(write_name,final_image_RGB)
+	
 	# STEP A.4 Perspective transform
 	result, Minv = transform(result)
 	
@@ -233,7 +240,7 @@ def pipeline(img):
 	
 	if save_images:
 		# Save binary file
-		final_image_RGB = out_img = np.dstack((result, result, result))*255
+		final_image_RGB = np.dstack((result, result, result))*255
 		write_name = output_folder + 'binary_warp_' + filename
 		cv2.imwrite(write_name,final_image_RGB)
 	
@@ -271,6 +278,12 @@ for fname in images:
 	if save_images:
 		# Warp original
 		undist = cv2.undistort(img, mtx, dist, None, mtx)
+		cv2.line(undist, (210, 720), (599, 446), color=[255,0,0], thickness=1)
+		cv2.line(undist, (599, 446), (680, 446), color=[255,0,0], thickness=1)
+		cv2.line(undist, (680, 446), (1110, 720), color=[255,0,0], thickness=1)
+		cv2.line(undist, (1110, 720), (210, 720), color=[255,0,0], thickness=1)
+		write_name = output_folder + 'original_rectangle_' + filename
+		cv2.imwrite(write_name,undist)
 		warped, Minv = transform(undist)
 		write_name = output_folder + 'warped_' + filename
 		cv2.imwrite(write_name,warped)
@@ -287,6 +300,7 @@ for fname in images:
 # Import everything needed to edit/save/watch video clips
 from moviepy.editor import VideoFileClip
 
+"""
 save_images = False
 is_video = True
 white_output = 'project_video_result.mp4'
@@ -298,3 +312,4 @@ white_output = 'project_video_result.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 white_clip = clip1.fl_image(pipeline) #NOTE: this function expects color images!!
 white_clip.write_videofile(white_output, audio=False)
+"""
