@@ -59,11 +59,11 @@ def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255))
 	
 def transform(img):
 	img_size = (img.shape[1], img.shape[0])
-	offset = 150
-	x1 = 254
-	x3 = 1053
+	offset = 100
+	x1 = 210
+	x3 = 1110
 	# We calculated the source points on a straight lines image using Photoshop
-	src = np.float32([[x1,677], [599,446], [680,446], [x3,677]])
+	src = np.float32([[x1,720], [599,446], [680,446], [x3,720]])
 	# c) define 4 destination points dst = np.float32([[,],[,],[,],[,]])
 	dst = np.float32([[x1+offset,720], [x1+offset,0], [x3-offset,0], [x3-offset,720]])
 	# d) use cv2.getPerspectiveTransform() to get M, the transform matrix
