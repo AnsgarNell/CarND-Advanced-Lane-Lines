@@ -26,8 +26,7 @@ The goals / steps of this project are the following:
 [image5]: ./output_images/original_rectangle_straight_lines1.jpg "Binary Example"
 [image6]: ./output_images/warped_straight_lines1.jpg "Warp Example"
 [image7]: ./output_images/sliding_windows_straight_lines1.jpg "Fit Visual"
-[image8]: ./output_images/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
+[image8]: ./output_images/final_image_straight_lines1.jpg "Output"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
@@ -114,9 +113,9 @@ curvature = (left_curverad + right_curverad) / 2
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+I implemented this step in lines 251 through 259 in my code in `advanced_lane_lines.py` in the function `pipeline()`.  Here is an example of my result on a test image:
 
-![alt text][image6]
+![alt text][image8]
 
 ---
 
@@ -124,7 +123,7 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./project_video_result.mp4)
 
 ---
 
