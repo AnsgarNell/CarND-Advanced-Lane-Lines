@@ -4,6 +4,7 @@ import numpy as np
 import glob
 import os
 import matplotlib.pyplot as plt
+from collections import deque
 
 # Define a class to receive the characteristics of each line detection
 class Lane():
@@ -22,46 +23,77 @@ mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
 input_folder = './test_images/'
 output_folder = './output_images/'
-filename = 'test_image.jpg'
 # Make a list of calibration images
 images = glob.glob(input_folder + '*.jpg')
+filename = 'test_image.jpg'
 save_images = True
 is_video = False
+lanes = deque(maxlen=6)
+
+def region_of_interest(img):
+	"""
+	Applies an image mask.
+	
+	Only keeps the region of the image defined by the polygon
+	formed from `vertices`. The rest of the image is set to black.
+	"""
+	imshape = img.shape
+	vertices = np.array([[(0,imshape[0]),(0,440),(imshape[1],440),(imshape[1],imshape[0])]], dtype=np.int32)
+	
+	#defining a blank mask to start with
+	mask = np.zeros_like(img)   
+	
+	#defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+	if len(img.shape) > 2:
+		channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
+		ignore_mask_color = (255,) * channel_count
+	else:
+		ignore_mask_color = 255
+		
+	#filling pixels inside the polygon defined by "vertices" with the fill color	
+	cv2.fillPoly(mask, vertices, ignore_mask_color)
+	
+	#returning the image only where mask pixels are nonzero
+	masked_image = cv2.bitwise_and(img, mask)
+	return masked_image
 
 # Combined color and gradient thresholds
-def hls_select(img, s_thresh=(170, 255), sx_thresh=(20, 100), l_thresh=(40,255)):
-	# Convert to HSV color space and separate the S channel
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
-	l_channel = hsv[:,:,1]
-	s_channel = hsv[:,:,2]
+def threshold(img, s_thresh=(120, 255), sx_thresh=(20, 60)):
+
+	hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
 	
-	# Sobel x
-	sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
-	abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
-	scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
+	L = hls[:,:,1]
+	S = hls[:,:,2]
 	
-	# Threshold x gradient
-	sxbinary = np.zeros_like(scaled_sobel)
-	sxbinary[(scaled_sobel >= sx_thresh[0]) & (scaled_sobel <= sx_thresh[1])] = 1
+	l_thresh = (40, 170)
+	l_binary = np.zeros_like(L)
+	l_binary[(L > l_thresh[0]) & (L <= l_thresh[1])] = 1
 	
-	# Threshold saturation channel
-	s_binary = np.zeros_like(s_channel)
-	s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+	s_thresh = (70, 255)
+	s_binary = np.zeros_like(S)
+	s_binary[(S > s_thresh[0]) & (S <= s_thresh[1])] = 1
 	
-	# Threshold lightness
-	l_binary = np.zeros_like(l_channel)
-	l_binary[(l_channel >= l_thresh[0]) & (l_channel <= l_thresh[1])] = 1
+	G = img[:,:,1]
+	R = img[:,:,2]
 	
-	# Combine the binary thresholds
-	combined_binary = np.zeros_like(sxbinary)
-	combined_binary[((l_binary == 1) & (s_binary == 1) | (sxbinary==1))] = 1
-	return combined_binary
+	R_thresh = (210, 255)
+	R_binary = np.zeros_like(R)
+	R_binary[(R > R_thresh[0]) & (R <= R_thresh[1])] = 1
+	
+	G_thresh = (195, 255)
+	G_binary = np.zeros_like(G)
+	G_binary[(G > G_thresh[0]) & (G <= G_thresh[1])] = 1
+	
+	combined = np.zeros_like(l_binary)
+	combined[((s_binary == 1) & (l_binary==1)) | (R_binary == 1) | (G_binary == 1)] = 1
+	
+	return combined
 	
 def transform(img):
 	img_size = (img.shape[1], img.shape[0])
-	offset = 100
-	x1 = 210
-	x3 = 1110
+	offset = 200
+	x1 = 200
+	x3 = 1100
 	# We calculated the source points on a straight lines image using Photoshop
 	src = np.float32([[x1,720], [599,446], [680,446], [x3,720]])
 	# c) define 4 destination points dst = np.float32([[,],[,],[,],[,]])
@@ -147,7 +179,14 @@ def detect_lines(binary_warped,lane):
 		# Assume you now have a new warped binary image 
 		# from the next frame of video (also called "binary_warped")
 		# It's now much easier to find line pixels!
-		left_lane_inds = ((nonzerox > (lane.left_fit[0]*(nonzeroy**2) + lane.left_fit[1]*nonzeroy + lane.left_fit[2] - margin)) & (nonzerox < (lane.left_fit[0]*(nonzeroy**2) + lane.left_fit[1]*nonzeroy + lane.left_fit[2] + margin))) 
+		left_fit_average = 0
+		right_fit_average = 0
+		for average_lane in lanes:
+			left_fit_average += average_lane.left_fit
+			right_fit_average += average_lane.right_fit
+		left_fit_average = left_fit_average / len(lanes)
+		right_fit_average = right_fit_average / len(lanes)
+		left_lane_inds = ((nonzerox > (left_fit_average[0]*(nonzeroy**2) + left_fit_average[1]*nonzeroy + left_fit_average[2] - margin)) & (nonzerox < (left_fit_average[0]*(nonzeroy**2) + left_fit_average[1]*nonzeroy + left_fit_average[2] + margin))) 
 		right_lane_inds = ((nonzerox > (lane.right_fit[0]*(nonzeroy**2) + lane.right_fit[1]*nonzeroy + lane.right_fit[2] - margin)) & (nonzerox < (lane.right_fit[0]*(nonzeroy**2) + lane.right_fit[1]*nonzeroy + lane.right_fit[2] + margin)))  
 
 	# Again, extract left and right line pixel positions
@@ -163,6 +202,7 @@ def detect_lines(binary_warped,lane):
 		lane.detected = True
 		lane.left_fit = left_fit
 		lane.right_fit = right_fit
+		lanes.append(lane)
 	
 	# Generate x and y values for plotting
 	ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
@@ -201,8 +241,8 @@ def detect_lines(binary_warped,lane):
 	# Create an image to draw the lines on
 	warp_zero = np.zeros_like(binary_warped).astype(np.uint8)
 	color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
-	lane_center = (right_fitx[0] - left_fitx[0])/2 + left_fitx[0]
-	lane_center -= 640
+	midpoint = ((rightx[0] - leftx[0]) / 2) + leftx[0]
+	lane_center = 640 - midpoint
 	lane_center_meters = lane_center*xm_per_pix
 	
 	# Recast the x and y points into usable format for cv2.fillPoly()
@@ -224,19 +264,23 @@ def pipeline(img):
 	# STEP A.2 UNDISTORT
 	undist = cv2.undistort(img, mtx, dist, None, mtx)
 	
+	masked = region_of_interest(undist)
+	
+	if save_images:
+		write_name = output_folder + 'masked_' + filename
+		cv2.imwrite(write_name,masked)
+	
 	# STEP A.3 Color/gradient threshold
-	result = hls_select(undist)
+	result = threshold(masked)
 	
 	if save_images:
 		# Save binary file
 		final_image_RGB = np.dstack((result, result, result))*255
 		write_name = output_folder + 'binary_' + filename
-		cv2.imwrite(write_name,final_image_RGB)
+		#cv2.imwrite(write_name,final_image_RGB)
 	
 	# STEP A.4 Perspective transform
 	result, Minv = transform(result)
-	
-	# Uncomment for saving file
 	
 	if save_images:
 		# Save binary file
@@ -274,6 +318,11 @@ for fname in images:
 
 	# Read in an image
 	img = cv2.imread(fname)
+	
+	converted = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+	s_channel = converted[:,:,2]
+	write_name = output_folder + 'hls_' + filename
+	cv2.imwrite(write_name,s_channel)
 	
 	if save_images:
 		# Warp original
