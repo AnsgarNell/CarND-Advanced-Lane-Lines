@@ -241,9 +241,9 @@ def detect_lines(binary_warped,lane):
 	# Create an image to draw the lines on
 	warp_zero = np.zeros_like(binary_warped).astype(np.uint8)
 	color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
-	midpoint = ((rightx[0] - leftx[0]) / 2) + leftx[0]
-	lane_center = 640 - midpoint
-	lane_center_meters = lane_center*xm_per_pix
+	lane_center = (right_fitx[-1] + left_fitx[-1])/2
+	center_offset_pixels = abs(binary_warped.shape[1]/2 - lane_center)
+	lane_center_meters = center_offset_pixels*xm_per_pix
 	
 	# Recast the x and y points into usable format for cv2.fillPoly()
 	pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
@@ -300,7 +300,7 @@ def pipeline(img):
 	font = cv2.FONT_HERSHEY_SIMPLEX
 	cv2.putText(result,text,(300,70), font, 1,(255,255,255),2)
 	text = ('Distance from lane center: ' + str(round(lane_center_meters,3)) + ' m')
-	cv2.putText(result,text,(300,120), font, 1,(255,255,255),2)   
+	cv2.putText(result,text,(300,120), font, 1,(255,255,255),2)
 	
 	if save_images:
 		# Save final image
