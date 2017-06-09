@@ -5,7 +5,6 @@ from tkinter import filedialog
 
 
 master = Tk()
-#master.withdraw()
 file_path = filedialog.askopenfilename()
 
 img = cv2.imread(file_path)
@@ -18,7 +17,7 @@ small = cv2.resize(img_copy, (0,0), fx=0.5, fy=0.5)
 cv2.imshow('Image',small)
 
 def threshold(x):
-	# get current positions of four trackbars
+	# get current positions of trackbars
 	min = cv2.getTrackbarPos('Min','Threshold viewer')
 	max = cv2.getTrackbarPos('Max','Threshold viewer')
 
