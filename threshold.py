@@ -2,10 +2,18 @@ import cv2
 import numpy as np
 from tkinter import *
 from tkinter import filedialog
+import os
+import glob
 
 
 master = Tk()
 file_path = filedialog.askopenfilename()
+directory = os.path.split(file_path)[0]
+filename = os.path.basename(file_path)
+file_path = directory + '\\' + filename
+# Make a list of calibration images
+images = glob.glob(directory + '\*.jpg')
+index = images.index(file_path)
 
 img = cv2.imread(file_path)
 img_copy = np.copy(img)
@@ -57,9 +65,26 @@ def sel():
 	channel = img_copy[:,:,selection]
 	threshold(x)
 
-
+def prev_image():
+	global index, img
+	index -= 1
+	if index == 0:
+		prev_button.config(state = DISABLED)
+	img = cv2.imread(images[index])
+	sel()
+	next_button.config(state = NORMAL)
+	
+def next_image():
+	global index, img
+	index += 1
+	if index == (len(images) - 1):
+		next_button.config(state = DISABLED)
+	img = cv2.imread(images[index])
+	sel()
+	prev_button.config(state = NORMAL)
 
 v = IntVar()
+v_image = IntVar()
 
 Radiobutton(master, text="BGR B channel", variable=v, value=0, command=sel).pack(anchor=W)
 Radiobutton(master, text="BGR G channel", variable=v, value=1, command=sel).pack(anchor=W)
@@ -76,6 +101,16 @@ Radiobutton(master, text="YUV V channel", variable=v, value=11, command=sel).pac
 Radiobutton(master, text="YCrCb Y channel", variable=v, value=12, command=sel).pack(anchor=W)
 Radiobutton(master, text="YCrCb Cr channel", variable=v, value=13, command=sel).pack(anchor=W)
 Radiobutton(master, text="YCrCb Cb channel", variable=v, value=14, command=sel).pack(anchor=W)
+
+prev_button = Button(master, text="Prev image", command=prev_image)
+prev_button.pack()
+next_button = Button(master, text="Next image", command=next_image)
+next_button.pack()
+
+if index == 0:
+	prev_button.config(state = DISABLED)
+elif index == (len(images) - 1):
+	next_button.config(state = DISABLED)
 
 mainloop()
 
