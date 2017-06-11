@@ -1,0 +1,1 @@
+ffmpeg -i project_video.mp4 -r 1/1 filename%03d.jpg
